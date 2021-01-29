@@ -1,0 +1,99 @@
+---
+title: "Principal Component Analysis"
+output: html_document
+---
+
+# Principal Component Anlysis (PCA)- This data set hosts survey responses from 1950 individuals rating 9 adjectives on a scale from 1 to 7.  The survey aims to describe sentiment for 4 different brands.
+
+# We'll explore the data and then run a PCA to see if anything stands out about the data. 
+# Load Packages
+```{r}
+library(tidyverse)
+library(janitor)
+library(corrplot)
+library(gplots)
+library(RColorBrewer)
+library(psych)
+library(skimr)
+library(lattice)
+```
+
+
+# Read in data
+```{r}
+
+prst.df <- read.csv("~/Desktop/Github/PCA/prst.csv") %>%
+  clean_names()
+str(prst.df)
+head(prst.df)
+describe(prst.df)
+skim(prst.df)
+```
+
+# 2 - Generate a correltion plot using the adjective ratings.  How many groups of adjectives does this plot suggest there might be?  Rationale provided below
+```{r}
+cor(prst.df[, 1:9])
+
+# corrplot to define associations among adjectives in survey data
+corrplot.mixed(corr = cor(prst.df[,-10]),
+               upper.col = colorpanel(50, "red4", "gray70", "blue4"),
+               lower.col = colorpanel(50, "red4", "gray70", "blue4"),
+               upper = "ellipse", tl.pos = "lt", tl.col = "black",
+               tl.cex = .9)
+
+# There are 3 distinct groupings which I identify as the User Experience Choice, the Early Adopters Choice, and the Bargain Hunters Choice.  
+# - The user experience choice (intuitive, helpful, friendly, adaptable), 
+# - The early adopters choice (exciting, delightful, and cutting edge), 
+# - The bargain hunters choice (best value, generous)
+```
+
+
+# 3 - Aggregate the mean of each adjective rating by brand. Plot a heatmap for the mean ratings by brand. How many groupings of adjectives does this plot suggest there might be? Provide a rationale for your answer.
+```{r}
+# compute mean for heatmap interpretation
+adj.mean <- aggregate(.~brand, data = prst.df, mean)
+rownames(adj.mean) <- adj.mean[,1]
+adj.mean <- adj.mean[, -1]
+adj.mean
+
+# generate a heatmap of mean ratings (heatmap.2 in gplots)
+library(RColorBrewer) 
+heatmap.2(as.matrix(adj.mean[,]), col = brewer.pal(9, "GnBu"),
+          trace = "none", key = F, dend = "none", mar = c(6, 18) + .1,
+          main = "\n\n\n\n\nBrand Attributes")
+
+# The heatmap almost encourages a 4th grouping in the adjectives that may not have been as obvious in the corrplot.  The heatmap ultimately makes an argument for splitting the User Experience Choice into 2 different groups where you have intuitive and helpful grouped together, and then friendly and adaptable grouped together.  In light of this, I would still group as 3 groups for the sake of explanation, and due to the fact the differentiation of those groups is weak for half of the brands represented.
+```
+
+# 4 - Compute the principal components for the adjectives using the original data. Make a scree plot. How many principal components are needed to explain the majority of the variance in the data using the scree plot method?
+```{r}
+# Compute Principal Component Analysis
+brand.pc <- prcomp(prst.df[, -10], scale = T)
+summary(brand.pc)
+
+# Generate scree plot to determine PCA cutoff.
+plot(brand.pc, type = "l")
+
+# Based on the summary of cumulative proportion and the bend in the scree plot, I would choose the first 2 components.  There is a strong argument to be made for stopping at 3 components since the scree plot has a bit of a double 'kink', or even a triple 'kink' at the 5th component, but the summary shows that the 3rd component drops below 20% of the explanation, so I will stop at 2.
+```
+
+
+# 5 - Use the principal components for the mean adjective ratings to generate a biplot of the adjectives loadings and brand scores for the first two principal components. How many groupings of adjectives does the biplot suggest?
+```{r}
+# We have already computed the mean back in step 3, and we will use it now to rerun our analysis 
+# perform PCA for means
+brand.mean.pc <- prcomp(adj.mean, scale = T)
+summary(brand.mean.pc)
+
+
+# perform PCA for means
+biplot(brand.mean.pc, main = "Brand Positioning", cex = c(1.5, 1))
+
+# The biplot suggests strongly for 2 groupings.  One could place "best value" as a third category though it is very close to delightful, cutting_edge, and exciting
+```
+
+# 6 - Suppose you are the brand manager for Sierra, and you wish to change your brand position to become more competitive with the market leader Tango. What are some strategies you could pursue based on the PCA positions?
+
+```{r}
+# As the brand manager for Sierra, I would recommend that we pursue more of the initiatives that are deemed to be more exciting and cutting edge by the customer base. Assuming that differentiation through being the best value in the market is not a core pillar of our brand, leaning more on the cutting edge and exciting may edge us closer to Tango.
+```
